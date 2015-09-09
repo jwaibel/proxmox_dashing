@@ -55,10 +55,12 @@ end
 def list_norgmanager(nodes)
     bad_rgmanager_nodes_array = nodes.select { |a| a['rgmanager'] == 0 }
     bad_rgmanager_nodes = bad_rgmanager_nodes_array.map { |x| x["name"] } 
-    norgmanager = bad_rgmanager_nodes.join("\n")
+    bad_rgmanager_nodes.join("\n")
 end
 
-host      = 'kvm0v3.jnb1.host-h.net'
+proxmox_hosts = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
+
+host      = proxmox_hosts.shuffle.first
 uri       = "https://#{host}:8006/api2/json/"
 @username = 'proxmoxdasher'
 @password = 'eevai8Jo'
@@ -69,33 +71,32 @@ uri       = "https://#{host}:8006/api2/json/"
 @site = RestClient::Resource.new(uri, :verify_ssl => false)
 @auth_params = create_ticket
 
-SCHEDULER.every '2s' do
-
-	@site["cluster/status"].get @auth_params do |response, request, result, &block|
-	  @status = check_response(response)
-	end
+def get_cluster_stats
 	@nodes = []
 	@bad_rgmanager_nodes = []
-
-	if @status.class == Array
-    if have_quorum(@status)
-      send_event('quorate', { status: 'OK', message: 'Cluster has quorum', status:'OK' } )
-    else
-      send_event('quorate', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } )
-    end
-      
-    nodes = @status.select { |a| a['type'] == 'node'}
-    norgmanagerlist = list_norgmanager(nodes)
-    unless norgmanagerlist.empty?
-	  	send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{norgmanagerlist}" } )
-	  else
-		  send_event('rgmanager', { status: 'OK', message: 'RGmanager is healthy' } )
-	  end
+  if have_quorum(@status)
+    send_event('quorate', { status: 'OK', message: 'Cluster has quorum', status:'OK' } )
+  else
+    send_event('quorate', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } )
+  end
+  nodes = @status.select { |a| a['type'] == 'node'}
+  norgmanagerlist = list_norgmanager(nodes)
+  unless norgmanagerlist.empty?
+    send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{norgmanagerlist}" } )
+  else
+    send_event('rgmanager', { status: 'OK', message: 'RGmanager is healthy' } )
   end
   @ha_hosts = @nodes.select { |a| a['type'] == 'group'}
 	@nodes.each do | node |
     p node.inspect
-			status = "OFFLINE"
+			@status = "OFFLINE"
   end
 end
 
+
+SCHEDULER.every '2s' do
+	@site["cluster/status"].get @auth_params do |response, request, result, &block|
+	  @status = check_response(response)
+	end
+  get_cluster_stats if @status.class == Arrays
+end
