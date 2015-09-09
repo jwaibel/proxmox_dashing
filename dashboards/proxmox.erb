@@ -1,0 +1,18 @@
+<% content_for :title do %>Proxmox<% end %>
+<div class="gridster">
+  <ul>
+    <li data-row="1" data-col="1" data-sizex="1" data-sizey="1">
+        <div data-id="quorate" data-view="HotStatus" data-title="Cluster Health" data-text=". Quorum status will show here ."></div>
+    </li>
+    <li data-row="1" data-col="1" data-sizex="2" data-sizey="1">
+      <div data-id="kvmcluster" data-view="List" data-unordered="true" data-title="V3 JNB1 Cluster" data-moreinfo="List of all nodes from cluster"></div>
+    </li>
+    <li data-row="1" data-col="1" data-sizex="1" data-sizey="1">
+        <div data-id="rgmanager" data-view="HotStatus" data-title="RG Manager Health" data-text=". status will show here ."></div>
+    </li>
+    <li data-row="1" data-col="1" data-sizex="2" data-sizey="1">
+      <div data-id="status" data-view="Health" data-title="Cluster Status" data-text=". status will show here ." onclick="window.location.href='ceph'"></div>
+    </li>
+  </ul>
+</div>
+

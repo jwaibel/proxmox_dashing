@@ -1,2 +1,1 @@
-# proxmox_dashing
-Dashing for proxmox cluster monitoring
+Check out http://shopify.github.com/dashing for more information.
