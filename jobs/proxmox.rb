@@ -53,16 +53,15 @@ def have_quorum(status)
 end
 
 def list_norgmanager(nodes)
-    bad_rgmanager_nodes_array = nodes.select { |a| a['rgmanager'] == 1 }
-    p bad
+    bad_rgmanager_nodes_array = nodes.select { |a| a['rgmanager'] == 0 }
     bad_rgmanager_nodes = bad_rgmanager_nodes_array.map { |x| x["name"] } 
-    norgmanager = @bad_rgmanager_nodes.join("\n")
+    norgmanager = bad_rgmanager_nodes.join("\n")
 end
 
 host      = 'kvm0v3.jnb1.host-h.net'
 uri       = "https://#{host}:8006/api2/json/"
 @username = 'proxmoxdasher'
-@password = 'secret'
+@password = 'eevai8Jo'
 @realm    = 'pve'
 @connection_status = ''
 @status   = {}
