@@ -42,6 +42,23 @@ def get_node_status(node)
 	end
 end
 
+def have_quorum(status)
+  quorum_line = status.find { |a| a['type'] == 'quorum'}
+  quorate = quorum_line['quorate'].to_i
+  if quorate == 0
+    false
+  else
+    true
+  end
+end
+
+def list_norgmanager(nodes)
+    bad_rgmanager_nodes_array = nodes.select { |a| a['rgmanager'] == 1 }
+    p bad
+    bad_rgmanager_nodes = bad_rgmanager_nodes_array.map { |x| x["name"] } 
+    norgmanager = @bad_rgmanager_nodes.join("\n")
+end
+
 host      = 'kvm0v3.jnb1.host-h.net'
 uri       = "https://#{host}:8006/api2/json/"
 @username = 'proxmoxdasher'
@@ -59,30 +76,24 @@ SCHEDULER.every '2s' do
 	  @status = check_response(response)
 	end
 	@nodes = []
-	@ips = {}
-	@badnodes = []
 	@bad_rgmanager_nodes = []
-	@estranged_nodes = []
+
 	if @status.class == Array
-    quorum_line = @status.find { |a| a['type'] == 'quorum'}
-    @quorate = quorum_line['quorate'].to_i
-    if @quorate == 0 
-      send_event('quorate', { status: 'CRITICAL', message: 'We do not have quorum', status:'Critical' } )
+    if have_quorum(@status)
+      send_event('quorate', { status: 'OK', message: 'Cluster has quorum', status:'OK' } )
     else
-      send_event('quorate', { status: 'OK', message: 'We have quorum', status:'OK' } )
+      send_event('quorate', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } )
     end
       
-    @nodes = @status.select { |a| a['type'] == 'node'}
-    @ha_hosts = @nodes.select { |a| a['type'] == 'group'}
-    @bad_rgmanager_nodes_array = @nodes.select { |a| a['rgmanager'] == 0 }
-    @bad_rgmanager_nodes = @bad_rgmanager_nodes_array.map { |x| x["name"] } 
-    @norgmanager = @bad_rgmanager_nodes.join("\n")
-    unless @norgmanager.empty?
-	  	send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{@norgmanager}" } )
+    nodes = @status.select { |a| a['type'] == 'node'}
+    norgmanagerlist = list_norgmanager(nodes)
+    unless norgmanagerlist.empty?
+	  	send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{norgmanagerlist}" } )
 	  else
 		  send_event('rgmanager', { status: 'OK', message: 'RGmanager is healthy' } )
 	  end
   end
+  @ha_hosts = @nodes.select { |a| a['type'] == 'group'}
 	@nodes.each do | node |
     p node.inspect
 			status = "OFFLINE"
