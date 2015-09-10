@@ -98,5 +98,5 @@ SCHEDULER.every '2s' do
 	@site["cluster/status"].get @auth_params do |response, request, result, &block|
 	  @status = check_response(response)
 	end
-  get_cluster_stats if @status.class == Arrays
+  get_cluster_stats if @status.class == Array
 end
