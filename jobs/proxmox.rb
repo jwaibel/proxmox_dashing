@@ -3,6 +3,12 @@ require 'json'
 
 set :kvm_rows, []
 
+def get_node_kernel(node)
+  @site["nodes/#{node}/status"].get @auth_params do |response, request, result, &block|
+    JSON.parse(response.body)['data']['kversion'].split[1]
+  end
+end
+
 def get_data(proxmox_hosts)
   connect_to_node(proxmox_hosts)
   begin
@@ -75,9 +81,17 @@ end
 def get_cluster_status
 	nodes = []
   nodes = @status.select { |a| a['type'] == 'node'}
+
   norgmanagerlist = select_hosts(nodes,'rgmanager',0)
   downhostlist = select_hosts(nodes, 'state',0)
   nopmxcfshostlist = select_hosts(nodes, 'pmxcfs',0)
+  
+
+  ha_hosts_array = @status.select { |a| a['type'] == 'group'}
+  down_ha_hosts = ha_hosts_array.select { |a| a['state'] != '112' }
+  down_ha_host_ids = down_ha_hosts.map { |x| x["name"] }
+
+
 
   send_event('pvecluster', { status: 'CRITICAL', message: "Too many nodes not running pvecluster: #{nopmxcfshostlist.join(", ")}", status:'Critical' } ) if nopmxcfshostlist.size >= 2
   if nopmxcfshostlist.empty?
@@ -86,26 +100,35 @@ def get_cluster_status
     send_event('pvecluster', { status: 'Warning', message: "PVECluster not running on:\n #{nopmxcfshostlist.join(", ")}"} )
   end
   
+  ok_hosts = []
+  nodes.each do |node|
+    ok_hosts << {"hostname" => node['name'], "kernelversion" =>  get_node_kernel(node['name'])}
+  end
+  headers = [{"cols"=>[{"value"=>"Server"}, {"value"=>"Kernel"}]}]
+  rows = []
+  ok_hosts.each do |host|
+    rows << {"cols"=> [{"value" => host['hostname']}, {"value" => host['kernelversion']}]}
+  end
+  send_event('hosts_and_kernels', { hrows: headers, rows: rows } )
+
   send_event('corosync', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(@status)
   if downhostlist.empty?
-    send_event('corosync', { status: 'OK', message: "All hosts are up" } )
+    send_event('corosync', { status: 'OK', message: "Corosync up on all hosts"} )
   else
     send_event('corosync', { status: 'Warning', message: "Node(s) not running: \n #{downhostlist.join(", ")}" } )
   end
-
   unless norgmanagerlist.empty?
     send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{norgmanagerlist.join(", ")}" } )
   else
     send_event('rgmanager', { status: 'OK', message: 'RGmanager is healthy' } )
   end
 
-#  @ha_hosts = nodes.select { |a| a['type'] == 'group'}
-#	nodes.each do | node |
-#    p node.inspect
-#			@status = "OFFLINE"
-#  end
+  unless down_ha_host_ids.empty?
+    send_event('haservers', { status: 'CRITICAL', message: "HA servers down: \n #{down_ha_host_ids.join(", ")}" } )
+  else
+    send_event('haservers', { status: 'OK', message: 'All HA servers are running' } )
+  end
 end
-
 proxmox_hosts = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
 
 SCHEDULER.every '2s' do
