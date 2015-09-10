@@ -57,18 +57,19 @@ def select_hosts(nodes, attribute, value=0)
     nodes = nodes_array.map { |x| x["name"] }
     nodes.join("\n")
 end
-proxmox_hosts = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
 
-host      = proxmox_hosts.shuffle.first
-uri       = "https://#{host}:8006/api2/json/"
-@username = 'proxmoxdasher'
-@password = 'eevai8Jo'
-@realm    = 'pve'
-@connection_status = ''
-@status   = {}
-
-@site = RestClient::Resource.new(uri, :verify_ssl => false)
-@auth_params = create_ticket
+def connect_to_node(proxmox_hosts)
+  @host      = proxmox_hosts.shuffle.first
+  p "Connecting to: #{@host}"
+  uri       = "https://#{@host}:8006/api2/json/"
+  @username = 'proxmoxdasher'
+  @password = 'eevai8Jo'
+  @realm    = 'pve'
+  @connection_status = ''
+  @status   = {}
+  @site = RestClient::Resource.new(uri, :verify_ssl => false)
+  @auth_params = create_ticket
+end
 
 def get_cluster_status
 	nodes = []
@@ -99,10 +100,17 @@ def get_cluster_status
 #  end
 end
 
+proxmox_hosts = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
 
 SCHEDULER.every '2s' do
+  connect_to_node(proxmox_hosts)
 	@site["cluster/status"].get @auth_params do |response, request, result, &block|
 	  @status = check_response(response)
 	end
-  get_cluster_status if @status.class == Array
+  if @status.class == Array
+    get_cluster_status
+  else
+    p "Host #{@host} not participating in cluster, connecting to new host"
+    connect_to_node(proxmox_hosts)
+  end
 end
