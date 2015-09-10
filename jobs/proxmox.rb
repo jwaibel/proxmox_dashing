@@ -62,7 +62,6 @@ end
 
 def connect_to_node(proxmox_hosts)
   @host      = proxmox_hosts.shuffle.first
-  p "Connecting to: #{@host}"
   uri       = "https://#{@host}:8006/api2/json/"
   @username = 'proxmoxdasher'
   @password = 'eevai8Jo'
@@ -80,24 +79,25 @@ def get_cluster_status
   downhostlist = select_hosts(nodes, 'state',0)
   nopmxcfshostlist = select_hosts(nodes, 'pmxcfs',0)
 
-  send_event('pvecluster', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(@status)
-  if have_quorum(@status) and nopmxcfshostlist.empty?
+  send_event('pvecluster', { status: 'CRITICAL', message: "Too many nodes not running pvecluster: #{nopmxcfshostlist.join(", ")}", status:'Critical' } ) if nopmxcfshostlist.size >= 2
+  if nopmxcfshostlist.empty?
     send_event('pvecluster', { status: 'OK', message: 'Cluster has quorum', status:'OK' } )
   else
-    send_event('pvecluster', { status: 'Warning', message: "Corosync not running on:\n #{nopmxcfshostlist.join}\n"} )
+    send_event('pvecluster', { status: 'Warning', message: "PVECluster not running on:\n #{nopmxcfshostlist.join(", ")}"} )
   end
   
-#  unless downhostlist.empty?
-#    send_event('corosync', { status: 'Warning', message: "Node(s) not running: \n #{downhostlist}" } )
-#  else
-#    send_event('corosync', { status: 'OK', message: "All hosts are up" } )
-#  end
-#
-#  unless norgmanagerlist.empty?
-#    send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{norgmanagerlist}" } )
-#  else
-#    send_event('rgmanager', { status: 'OK', message: 'RGmanager is healthy' } )
-#  end
+  send_event('corosync', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(@status)
+  if downhostlist.empty?
+    send_event('corosync', { status: 'OK', message: "All hosts are up" } )
+  else
+    send_event('corosync', { status: 'Warning', message: "Node(s) not running: \n #{downhostlist.join(", ")}" } )
+  end
+
+  unless norgmanagerlist.empty?
+    send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{norgmanagerlist.join(", ")}" } )
+  else
+    send_event('rgmanager', { status: 'OK', message: 'RGmanager is healthy' } )
+  end
 
 #  @ha_hosts = nodes.select { |a| a['type'] == 'group'}
 #	nodes.each do | node |
@@ -113,7 +113,6 @@ SCHEDULER.every '2s' do
   if @status.class == Array
     get_cluster_status
   else
-    p "Host #{@host} not participating in cluster, connecting to new host"
     @status = get_data(proxmox_hosts)
   end
 end
