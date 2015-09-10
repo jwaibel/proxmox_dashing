@@ -52,16 +52,10 @@ def have_quorum(status)
   end
 end
 
-def list_norgmanager(nodes)
-    bad_rgmanager_nodes_array = nodes.select { |a| a['rgmanager'] == 0 }
-    bad_rgmanager_nodes = bad_rgmanager_nodes_array.map { |x| x["name"] } 
-    bad_rgmanager_nodes.join("\n")
-end
-
-def list_downhosts(nodes)
-    bad_rgmanager_nodes_array = nodes.select { |a| a['state'] == 1 }
-    bad_rgmanager_nodes = bad_rgmanager_nodes_array.map { |x| x["name"] } 
-    bad_rgmanager_nodes.join("\n")
+def select_hosts(nodes, attribute, value=0)
+    nodes_array = nodes.select { |a| a[attribute] == value }
+    nodes = nodes_array.map { |x| x["name"] }
+    nodes.join("\n")
 end
 proxmox_hosts = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
 
@@ -84,14 +78,15 @@ def get_cluster_status
     send_event('quorate', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } )
   end
   nodes = @status.select { |a| a['type'] == 'node'}
-  norgmanagerlist = list_norgmanager(nodes)
+  norgmanagerlist = select_hosts(nodes,'rgmanager',0)
+  downhostlist = select_hosts(nodes, 'state',0)
+
   unless norgmanagerlist.empty?
     send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{norgmanagerlist}" } )
   else
     send_event('rgmanager', { status: 'OK', message: 'RGmanager is healthy' } )
   end
 
-  downhostlist = list_downhosts(nodes) 
   unless downhostlist.empty?
     send_event('kvmcluster', { status: 'CRITICAL', message: "Node(s) not running: \n #{downhostlist}" } )
   else
