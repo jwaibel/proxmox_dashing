@@ -100,10 +100,8 @@ def get_cluster_status
     send_event('pvecluster', { status: 'Warning', message: "PVECluster not running on:\n #{nopmxcfshostlist.join(", ")}"} )
   end
   
-  ok_hosts = []
   rows = []
   nodes.each do |node|
-    host = {"hostname" => node['name'], "kernelversion" =>  get_node_kernel(node['name'])}
     rows << {"cols"=> [{"value" => node['name']} ,{"value" => get_node_kernel(node['name'])}] }
   end
   send_event('hosts_and_kernels', { rows: rows } )
