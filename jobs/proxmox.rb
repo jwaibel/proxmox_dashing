@@ -101,15 +101,12 @@ def get_cluster_status
   end
   
   ok_hosts = []
-  nodes.each do |node|
-    ok_hosts << {"hostname" => node['name'], "kernelversion" =>  get_node_kernel(node['name'])}
-  end
-  headers = [{"cols"=>[{"value"=>"Server"}, {"value"=>"Kernel"}]}]
   rows = []
-  ok_hosts.each do |host|
-    rows << {"cols"=> [{"value" => host['hostname']}, {"value" => host['kernelversion']}]}
+  nodes.each do |node|
+    host = {"hostname" => node['name'], "kernelversion" =>  get_node_kernel(node['name'])}
+    rows << {"cols"=> [{"value" => node['name']} ,{"value" => get_node_kernel(node['name'])}] }
   end
-  send_event('hosts_and_kernels', { hrows: headers, rows: rows } )
+  send_event('hosts_and_kernels', { rows: rows } )
 
   send_event('corosync', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(@status)
   if downhostlist.empty?

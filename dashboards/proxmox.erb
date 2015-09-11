@@ -1,10 +1,4 @@
-<script type='text/javascript'>
-$(function() {
-    Dashing.gridsterLayout('[{"col":3,"row":2,"size_x":1,"size_y":1},{"col":4,"row":1,"size_x":1,"size_y":1},{"col":3,"row":1,"size_x":1,"size_y":1},{"col":4,"row":2,"size_x":1,"size_y":1},{"col":1,"row":1,"size_x":2,"size_y":2}]')
-    });
-</script>
-
-<% content_for :title do %>Proxmox<% end %>
+<% content_for :title do %>kvmXv3.jnb1.host-h.net Proxmox dashboard<% end %>
 <div class="gridster">
   <ul>
     <li data-row="1" data-col="1" data-sizex="1" data-sizey="1">
@@ -17,9 +11,9 @@ $(function() {
         <div data-id="rgmanager" data-view="HotStatus" data-title="RG Manager Health" data-text=". status will show here ."></div>
     </li>
     <li data-row="1" data-col="1" data-sizex="1" data-sizey="1">
-        <div data-id="haservers" data-view="HotStatus" data-title="Haservers" data-text=". status will show here ."></div>
+        <div data-id="haservers" data-view="HotStatus" data-title="HA Servers State" data-text=". status will show here ."></div>
     </li>
-    <li data-row="1" data-col="1" data-sizex="2" data-sizey="2">
+    <li data-row="1" data-col="1" data-sizex="1" data-sizey="1">
         <div data-id="hosts_and_kernels" data-view="Table" data-title="KVM Hosts" data-text=". status will show here ."></div>
     </li>
   </ul>
