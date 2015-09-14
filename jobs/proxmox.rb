@@ -1,5 +1,7 @@
-require 'rest_client'
 require 'json'
+require 'rest_client'
+require 'socket'
+require 'timeout'
 
 set :kvm_rows, []
 
@@ -13,7 +15,9 @@ def get_data(proxmox_hosts)
   connect_to_node(proxmox_hosts)
   begin
     @site["cluster/status"].get @auth_params do |response, request, result, &block|
-      JSON.parse(response.body)['data']
+      result = JSON.parse(response.body)['data']
+      p result
+      return result
     end
   rescue => e
     connect_to_node(proxmox_hosts)
@@ -36,11 +40,23 @@ end
 
 def create_ticket
   post_param = { username: @username, realm: @realm, password: @password }
-  @site['access/ticket'].post post_param do |response, request, result, &block|
-    if response.code == 200
-      extract_ticket response
-    else
-      @connection_status = 'error'
+  begin
+     @site['access/ticket'].post post_param do |response, request, result, &block|
+      if response.code == 200
+        @bad_nodes.delete(@host)
+        extract_ticket response
+      else
+        @connection_status = 'error'
+      end
+    end
+  rescue Exception => e
+    @bad_nodes << @host unless @bad_nodes.include?(@host)
+    if @bad_nodes.uniq.count == @proxmox_hosts.uniq.count
+      p "Setting all blocks to critical, beacuse no hosts are reachable"
+      send_event('pvecluster', { status: 'CRITICAL', message: "KVM cluster unreachable" } )
+      send_event('corosync', { status: 'CRITICAL', message: "KVM cluster unreachable"} )
+      send_event('rgmanager', { status: 'CRITICAL', message: "KVM cluster unreachable" } )
+      send_event('haservers', { status: 'CRITICAL', message: "KVM cluster unreachable" })
     end
   end
 end
@@ -66,16 +82,97 @@ def select_hosts(nodes, attribute, value=0)
     nodes_array.map { |x| x["name"] }
 end
 
-def connect_to_node(proxmox_hosts)
-  @host      = proxmox_hosts.shuffle.first
-  uri       = "https://#{@host}:8006/api2/json/"
-  @username = 'proxmoxdasher'
-  @password = 'eevai8Jo'
-  @realm    = 'pve'
+def connect_to_node
   @connection_status = ''
   @status   = {}
-  @site = RestClient::Resource.new(uri, :verify_ssl => false)
+  @uri       = "https://#{@host}:8006/api2/json/"
+  @site = RestClient::Resource.new(@uri, :verify_ssl => false, open_timeout: 3)
   @auth_params = create_ticket
+end
+
+def is_listening?(hostname)
+  @uri       = "https://#{hostname}:8006/api2/json/"
+  p RestClient::Resource.new(@uri, :verify_ssl => false, open_timeout: 3)
+end
+
+def is_port_open?(ip, port)
+  begin
+    Timeout::timeout(1) do
+      begin
+        s = TCPSocket.new(ip, port)
+        s.close
+        return true
+      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+        return false
+      end
+    end
+  rescue Timeout::Error
+  end
+
+  return false
+end
+
+def get_config
+  config = {}
+  config['proxmox_hosts'] = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
+  config['bad_nodes'] = []
+  config['good_nodes'] = []
+  config['username']  = 'proxmoxdasher'
+  config['password']  = 'eevai8Jo'
+  config['realm']     = 'pve'
+  config['port']     = 8006
+  return config
+end
+
+def detect_bad_nodes(config)
+  config['proxmox_hosts'].each do |host|
+    if is_port_open?(host,config['port'])
+      uri       = "https://#{host}:#{config['port']}/api2/json/"
+      post_param = { username: config['username'], realm: config['realm'], password: config['password'] }
+      begin
+        site = RestClient::Resource.new(uri, :verify_ssl => false, open_timeout: 3)
+        response = site['access/ticket'].post post_param do |response, request, result, &block|
+          if response.code == 200
+            config['bad_nodes'].delete(host) if config['bad_nodes'].include?(host)
+            config['good_nodes'] << host unless config['good_nodes'].include?(host)
+          else
+            config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
+            config['bad_nodes'] << {host => "not cannot authenticate"}
+          end
+        end
+      rescue Exception
+        config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
+        config['bad_nodes'] << {host => "not cannot authenticate"}
+      end
+    else
+      config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
+      config['bad_nodes'] << {host => "not listening"}
+    end
+    config
+  end
+end
+
+def delete_cannot_auth(config)
+  config['good_nodes'].each do |host|
+    uri       = "https://#{host}:8006/api2/json/"
+    post_param = { username: config['username'], realm: config['realm'], password: config['password'] }
+    begin
+      site = RestClient::Resource.new(uri, :verify_ssl => false, open_timeout: 3)
+      response = site['access/ticket'].post post_param do |response, request, result, &block|
+        if response.code == 200
+          config['bad_nodes'].delete(host) if config['bad_nodes'].include?(host)
+          config['good_nodes'] << host unless config['good_nodes'].include?(host)
+        else
+          config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
+          config['bad_nodes'] << {host => "not cannot authenticate"}
+        end
+      end
+    rescue Exception
+      config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
+      config['bad_nodes'] << {host => "not cannot authenticate"}
+    end
+  end
+  config
 end
 
 def get_cluster_status
@@ -126,11 +223,18 @@ def get_cluster_status
 end
 proxmox_hosts = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
 
+conf=get_config()
 SCHEDULER.every '2s' do
-  @status = get_data(proxmox_hosts)
-  if @status.class == Array
-    get_cluster_status
-  else
-    @status = get_data(proxmox_hosts)
-  end
+  detect_bad_nodes(conf)
+  p "good_nodes: #{conf['good_nodes']}"
+  p "bad_nodes: #{conf['bad_nodes']}"
+#  @status = get_data
+#  p @status
+#  if @status.class == Array
+#    get_cluster_status
+#  p @status
+#  else
+#    @status = get_data
+#  p @status
+#  end
 end
