@@ -73,7 +73,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  bundler
   dashing
   rest-client
 
