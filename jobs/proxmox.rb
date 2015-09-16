@@ -3,54 +3,9 @@ require 'rest_client'
 require 'socket'
 require 'timeout'
 
-set :kvm_rows, []
-
 def get_node_kernel(node)
   @site["nodes/#{node}/status"].get @auth_params do |response, request, result, &block|
     JSON.parse(response.body)['data']['kversion'].split[1]
-  end
-end
-
-def get_data(proxmox_hosts)
-  connect_to_node(proxmox_hosts)
-  begin
-    @site["cluster/status"].get @auth_params do |response, request, result, &block|
-      result = JSON.parse(response.body)['data']
-      p result
-      return result
-    end
-  rescue => e
-    connect_to_node(proxmox_hosts)
-  end
-end
-
-def extract_ticket(response)
-  data = JSON.parse(response.body)
-  ticket = data['data']['ticket']
-  csrf_prevention_token = data['data']['CSRFPreventionToken']
-  unless ticket.nil?
-    token = 'PVEAuthCookie=' + ticket.gsub!(/:/, '%3A').gsub!(/=/, '%3D')
-  end
-  @connection_status = 'connected'
-  {
-    CSRFPreventionToken: csrf_prevention_token,
-    cookie: token
-  }
-end
-
-def create_ticket
-  post_param = { username: @username, realm: @realm, password: @password }
-  begin
-     @site['access/ticket'].post post_param do |response, request, result, &block|
-      if response.code == 200
-        @bad_nodes.delete(@host)
-        extract_ticket response
-      else
-        @connection_status = 'error'
-      end
-    end
-  rescue Exception => e
-  p "Create Ticket failed because #{e}"
   end
 end
 
@@ -75,17 +30,10 @@ def select_hosts(nodes, attribute, value=0)
     nodes_array.map { |x| x["name"] }
 end
 
-def connect_to_node
-  @connection_status = ''
-  @status   = {}
-  @uri       = "https://#{@host}:8006/api2/json/"
-  @site = RestClient::Resource.new(@uri, :verify_ssl => false, open_timeout: 3)
-  @auth_params = create_ticket
-end
 
 def is_listening?(hostname)
-  @uri       = "https://#{hostname}:8006/api2/json/"
-  p RestClient::Resource.new(@uri, :verify_ssl => false, open_timeout: 3)
+  uri       = "https://#{hostname}:8006/api2/json/"
+  p RestClient::Resource.new(uri, :verify_ssl => false, open_timeout: 3)
 end
 
 def is_port_open?(ip, port)
@@ -101,8 +49,7 @@ def is_port_open?(ip, port)
     end
   rescue Timeout::Error
   end
-
-  return false
+  false
 end
 
 def get_config
@@ -117,7 +64,7 @@ def get_config
   return config
 end
 
-def mark_bad_nodes(config)
+def classify_nodes(config)
   config['proxmox_hosts'].each do |host|
     if is_port_open?(host,config['port'])
       uri       = "https://#{host}:#{config['port']}/api2/json/"
@@ -145,7 +92,7 @@ def mark_bad_nodes(config)
   end
 end
 
-def get_cluster_status
+def report_cluster_status
 	nodes = []
   nodes = @status.select { |a| a['type'] == 'node'}
 
@@ -196,8 +143,6 @@ def report_total_failure
 end
 
 def bad_nodes_report(conf)
-  mark_bad_nodes(conf)
-  report_total_failure if conf['good_nodes'].empty?
   rows = []
   unless conf['bad_nodes'].empty?
     conf['bad_nodes'].each do |name, reason|
@@ -206,17 +151,72 @@ def bad_nodes_report(conf)
   end
   rows
 end
+def check_response(response)
+  if response.code == 200
+    JSON.parse(response.body)['data']
+  else
+    'NOK: error code = ' + response.code.to_s
+  end
+end
 
-conf=get_config()
+def extract_ticket(response)
+  data = JSON.parse(response.body)
+  ticket = data['data']['ticket']
+  csrf_prevention_token = data['data']['CSRFPreventionToken']
+  unless ticket.nil?
+    token = 'PVEAuthCookie=' + ticket.gsub!(/:/, '%3A').gsub!(/=/, '%3D')
+  end
+  @connection_status = 'connected'
+  {
+    CSRFPreventionToken: csrf_prevention_token,
+    cookie: token
+  }
+end
+
+def create_ticket
+  post_param = { username: @username, realm: @realm, password: @password }
+  begin
+    @site['access/ticket'].post post_param do |response, request, result, &block|
+      if response.code == 200
+        extract_ticket response
+      else
+        @connection_status = 'error'
+      end
+    end
+  rescue Exception
+    p @connection_status
+  end
+end
+
+
+
+@conf=get_config()
 SCHEDULER.every '2s' do
+@auth_params = create_ticket
+
+  classify_nodes(conf)
+  report_total_failure if conf['good_nodes'].empty?
+  hostname = conf['good_nodes'].shuffle.first
+  uri = "https://#{hostname}:#{conf['port']}/api2/json/"
+  @site = RestClient::Resource.new(uri, :verify_ssl => false)
+  @site["cluster/status"].get @auth_params do |response, request, result, &block|
+    @status = check_response(response)
+    p @status
+  end
+end
+
+
+  
+  #populate data from random good node
+
 #  conf['good_nodes'].each do |node|
 #    rows << {"cols"=> [{"value" => node['name']} ,{"value" => get_node_kernel(node['name'])}] }
 #  end
-   send_event('hosts_and_kernels', { rows: bad_nodes_report(conf) } )
 
 
-#   get_cluster_status
-    end
+#   status = get_data()
+#   p status
+#    report_cluster_status
 
 #  else
 #    send_event('hosts_and_kernels', { rows: rows } )
@@ -231,7 +231,6 @@ SCHEDULER.every '2s' do
 
 
 
-#  @status = get_data
 #  p @status
 #  if @status.class == Array
 #  p @status
