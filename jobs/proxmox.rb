@@ -50,14 +50,7 @@ def create_ticket
       end
     end
   rescue Exception => e
-    @bad_nodes << @host unless @bad_nodes.include?(@host)
-    if @bad_nodes.uniq.count == @proxmox_hosts.uniq.count
-      p "Setting all blocks to critical, beacuse no hosts are reachable"
-      send_event('pvecluster', { status: 'CRITICAL', message: "KVM cluster unreachable" } )
-      send_event('corosync', { status: 'CRITICAL', message: "KVM cluster unreachable"} )
-      send_event('rgmanager', { status: 'CRITICAL', message: "KVM cluster unreachable" } )
-      send_event('haservers', { status: 'CRITICAL', message: "KVM cluster unreachable" })
-    end
+  p "Create Ticket failed because #{e}"
   end
 end
 
@@ -114,17 +107,17 @@ end
 
 def get_config
   config = {}
-  config['proxmox_hosts'] = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
-  config['bad_nodes'] = []
+  config['proxmox_hosts'] = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net","kvm5v3.jnb1.host-h.net","kvm0v3.cpt3.host-h.net"]
+  config['bad_nodes']  = {}
   config['good_nodes'] = []
-  config['username']  = 'proxmoxdasher'
-  config['password']  = 'eevai8Jo'
-  config['realm']     = 'pve'
-  config['port']     = 8006
+  config['username']   = 'proxmoxdasher'
+  config['password']   = 'eevai8Jo'
+  config['realm']      = 'pve'
+  config['port']       = 8006
   return config
 end
 
-def detect_bad_nodes(config)
+def mark_bad_nodes(config)
   config['proxmox_hosts'].each do |host|
     if is_port_open?(host,config['port'])
       uri       = "https://#{host}:#{config['port']}/api2/json/"
@@ -137,42 +130,19 @@ def detect_bad_nodes(config)
             config['good_nodes'] << host unless config['good_nodes'].include?(host)
           else
             config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
-            config['bad_nodes'] << {host => "not cannot authenticate"}
+            config['bad_nodes'][host] = "cannot authenticate"
           end
         end
       rescue Exception
         config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
-        config['bad_nodes'] << {host => "not cannot authenticate"}
+        config['bad_nodes'][host] = "cannot authenticate"
       end
     else
       config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
-      config['bad_nodes'] << {host => "not listening"}
+        config['bad_nodes'][host] = "not listening"
     end
     config
   end
-end
-
-def delete_cannot_auth(config)
-  config['good_nodes'].each do |host|
-    uri       = "https://#{host}:8006/api2/json/"
-    post_param = { username: config['username'], realm: config['realm'], password: config['password'] }
-    begin
-      site = RestClient::Resource.new(uri, :verify_ssl => false, open_timeout: 3)
-      response = site['access/ticket'].post post_param do |response, request, result, &block|
-        if response.code == 200
-          config['bad_nodes'].delete(host) if config['bad_nodes'].include?(host)
-          config['good_nodes'] << host unless config['good_nodes'].include?(host)
-        else
-          config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
-          config['bad_nodes'] << {host => "not cannot authenticate"}
-        end
-      end
-    rescue Exception
-      config['good_nodes'].delete(host) if config['good_nodes'].include?(host)
-      config['bad_nodes'] << {host => "not cannot authenticate"}
-    end
-  end
-  config
 end
 
 def get_cluster_status
@@ -197,11 +167,6 @@ def get_cluster_status
     send_event('pvecluster', { status: 'Warning', message: "PVECluster not running on:\n #{nopmxcfshostlist.join(", ")}"} )
   end
   
-  rows = []
-  nodes.each do |node|
-    rows << {"cols"=> [{"value" => node['name']} ,{"value" => get_node_kernel(node['name'])}] }
-  end
-  send_event('hosts_and_kernels', { rows: rows } )
 
   send_event('corosync', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(@status)
   if downhostlist.empty?
@@ -221,20 +186,56 @@ def get_cluster_status
     send_event('haservers', { status: 'OK', message: 'All HA servers are running' } )
   end
 end
-proxmox_hosts = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
+
+def report_total_failure
+    p "Setting all blocks to critical, beacuse no hosts are reachable"
+    send_event('pvecluster', { status: 'CRITICAL', message: "KVM cluster unreachable" } )
+    send_event('corosync', { status: 'CRITICAL', message: "KVM cluster unreachable"} )
+    send_event('rgmanager', { status: 'CRITICAL', message: "KVM cluster unreachable" } )
+    send_event('haservers', { status: 'CRITICAL', message: "KVM cluster unreachable" })
+end
+
+def bad_nodes_report(conf)
+  mark_bad_nodes(conf)
+  report_total_failure if conf['good_nodes'].empty?
+  rows = []
+  unless conf['bad_nodes'].empty?
+    conf['bad_nodes'].each do |name, reason|
+      rows << {"cols"=> [{"value" => name} ,{"value" => reason }] }
+    end
+  end
+  rows
+end
 
 conf=get_config()
 SCHEDULER.every '2s' do
-  detect_bad_nodes(conf)
-  p "good_nodes: #{conf['good_nodes']}"
-  p "bad_nodes: #{conf['bad_nodes']}"
+#  conf['good_nodes'].each do |node|
+#    rows << {"cols"=> [{"value" => node['name']} ,{"value" => get_node_kernel(node['name'])}] }
+#  end
+   send_event('hosts_and_kernels', { rows: bad_nodes_report(conf) } )
+
+
+#   get_cluster_status
+    end
+
+#  else
+#    send_event('hosts_and_kernels', { rows: rows } )
+#  conf['good_nodes'].each do |node|
+#    rows << {"cols"=> [{"value" => node['name']} ,{"value" => get_node_kernel(node['name'])}] }
+#  end
+#  conf['bad_nodes'].each do |k, v|
+#    rows << {"cols"=> [{"value" => k} ,{"value" => v }] }
+#  end
+#send_event('hosts_and_kernels', { rows: rows } )
+
+
+
+
 #  @status = get_data
 #  p @status
 #  if @status.class == Array
-#    get_cluster_status
 #  p @status
 #  else
 #    @status = get_data
 #  p @status
 #  end
-end
