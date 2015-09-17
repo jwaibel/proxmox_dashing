@@ -190,7 +190,7 @@ end
 
 
 
-@conf=get_config()
+conf=get_config()
 SCHEDULER.every '2s' do
 @auth_params = create_ticket
 
