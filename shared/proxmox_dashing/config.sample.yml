@@ -1,0 +1,8 @@
+config_data:
+  username: proxmoxdashing
+  password: secret
+  realm: pve
+  proxmox_hosts: 
+    - proxmoxhost1
+    - proxmoxhost2
+    - proxmoxhost3

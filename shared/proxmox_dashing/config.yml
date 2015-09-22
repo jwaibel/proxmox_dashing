@@ -1,0 +1,10 @@
+config_data:
+  username: proxmoxdasher
+  password: eevai8Jo
+  realm: pve
+  proxmox_hosts: 
+    - kvm0v3.jnb1.host-h.net
+    - kvm1v3.jnb1.host-h.net
+    - kvm2v3.jnb1.host-h.net
+    - kvm3v3.jnb1.host-h.net
+    - kvm4v3.jnb1.host-h.net

@@ -1,5 +1,6 @@
 require 'rest_client'
 require 'json'
+require 'yaml'
 
 set :kvm_rows, []
 
@@ -9,14 +10,14 @@ def get_node_kernel(node)
   end
 end
 
-def get_data(proxmox_hosts)
-  connect_to_node(proxmox_hosts)
+def get_data
+  connect_to_node
   begin
     @site["cluster/status"].get @auth_params do |response, request, result, &block|
       JSON.parse(response.body)['data']
     end
   rescue => e
-    connect_to_node(proxmox_hosts)
+    connect_to_node
   end
 end
 
@@ -66,12 +67,9 @@ def select_hosts(nodes, attribute, value=0)
     nodes_array.map { |x| x["name"] }
 end
 
-def connect_to_node(proxmox_hosts)
-  @host      = proxmox_hosts.shuffle.first
+def connect_to_node
+  @host      = @proxmox_hosts.shuffle.first
   uri       = "https://#{@host}:8006/api2/json/"
-  @username = 'proxmoxdasher'
-  @password = 'eevai8Jo'
-  @realm    = 'pve'
   @connection_status = ''
   @status   = {}
   @site = RestClient::Resource.new(uri, :verify_ssl => false)
@@ -124,13 +122,22 @@ def get_cluster_status
     send_event('haservers', { status: 'OK', message: 'All HA servers are running' } )
   end
 end
-proxmox_hosts = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net"]
 
+def get_config
+fn = File.dirname(File.expand_path(__FILE__)) + '/../shared/proxmox_dashing/config.yml'
+cnf = YAML::load(File.open(fn))
+@proxmox_hosts = cnf['config_data']['proxmox_hosts']
+@username = cnf['config_data']['username']
+@password = cnf['config_data']['password']
+@realm = cnf['config_data']['realm']
+
+end
+get_config
 SCHEDULER.every '2s' do
-  @status = get_data(proxmox_hosts)
+  @status = get_data
   if @status.class == Array
     get_cluster_status
   else
-    @status = get_data(proxmox_hosts)
+    @status = get_data
   end
 end
