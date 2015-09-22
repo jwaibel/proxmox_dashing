@@ -133,7 +133,7 @@ def get_config
 end
 
 get_config
-SCHEDULER.every '2s' do
+SCHEDULER.every '20s' do
   @status = get_data
   if @status.class == Array
     get_cluster_status
