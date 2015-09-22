@@ -124,14 +124,14 @@ def get_cluster_status
 end
 
 def get_config
-fn = File.dirname(File.expand_path(__FILE__)) + '/../shared/proxmox_dashing/config.yml'
-cnf = YAML::load(File.open(fn))
-@proxmox_hosts = cnf['config_data']['proxmox_hosts']
-@username = cnf['config_data']['username']
-@password = cnf['config_data']['password']
-@realm = cnf['config_data']['realm']
-
+  fn = File.dirname(File.expand_path(__FILE__)) + '/../shared/proxmox_dashing/config.yml'
+  cnf = YAML::load(File.open(fn))
+  @proxmox_hosts = cnf['config_data']['proxmox_hosts']
+  @username = cnf['config_data']['username']
+  @password = cnf['config_data']['password']
+  @realm = cnf['config_data']['realm']
 end
+
 get_config
 SCHEDULER.every '2s' do
   @status = get_data
