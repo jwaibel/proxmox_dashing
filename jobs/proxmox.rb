@@ -192,7 +192,7 @@ def create_ticket(config,site)
 end
 
 conf=get_config()
-SCHEDULER.every '5s' do
+SCHEDULER.every '20s' do
   classify_nodes(conf)
   report_total_failure if conf['good_nodes'].empty?
   hostname = conf['good_nodes'].shuffle.first
