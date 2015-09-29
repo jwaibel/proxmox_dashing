@@ -69,34 +69,12 @@ def is_port_open?(ip, port)
 end
 
 def get_config
-  config = {}
-#  fn = File.dirname(File.expand_path(__FILE__)) + '/../../shared/proxmox_dashing/config.yml'
-#  cnf = YAML::load(File.open(fn))
-  config['proxmox_hosts'] = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net","kvm5v3.jnb1.host-h.net","kvm0v3.cpt3.host-h.net"]
-  #@proxmox_hosts = cnf['config_data']['proxmox_hosts']
-  #@username = cnf['config_data']['username']
-  #@password = cnf['config_data']['password']
-  #@realm = cnf['config_data']['realm']
-  config['username']   = 'proxmoxdasher'
-  config['password']   = 'eevai8Jo'
-  config['realm']     = 'pve'
-  config['port']       = 8006
+  config_file = File.dirname(File.expand_path(__FILE__)) + '/../../shared/proxmox_dashing/config.yml'
+  config = YAML::load(File.open(config_file))['config_data']
   config['bad_nodes']  = {}
   config['good_nodes'] = []
   return config
 end
-
-#def get_config
-#  config = {}
-#  config['proxmox_hosts'] = ["kvm0v3.jnb1.host-h.net", "kvm1v3.jnb1.host-h.net", "kvm2v3.jnb1.host-h.net", "kvm3v3.jnb1.host-h.net", "kvm4v3.jnb1.host-h.net","kvm5v3.jnb1.host-h.net","kvm0v3.cpt3.host-h.net"]
-#  config['bad_nodes']  = {}
-#  config['good_nodes'] = []
-#  config['username']   = 'proxmoxdasher'
-#  config['password']   = 'eevai8Jo'
-#  config['realm']      = 'pve'
-#  config['port']       = 8006
-#  return config
-#end
 
 def classify_nodes(config)
   config['proxmox_hosts'].each do |host|
