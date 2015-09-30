@@ -117,39 +117,39 @@ def report_cluster_status(site,auth_params)
   down_ha_hosts = ha_hosts_array.select { |a| a['state'] != '112' }
   down_ha_host_ids = down_ha_hosts.map { |x| x["name"] }
 
-  send_event('pvecluster', { status: 'CRITICAL', message: "Too many nodes not running pvecluster: #{nopmxcfshostlist.join(", ")}", status:'Critical' } ) if nopmxcfshostlist.size >= 2
+  send_event('pvecluster', { state: 'critical', message: "Too many nodes not running pvecluster: #{nopmxcfshostlist.join(", ")}" } ) if nopmxcfshostlist.size >= 2
   if nopmxcfshostlist.empty?
-    send_event('pvecluster', { status: 'OK', message: 'Cluster has quorum', status:'OK' } )
+    send_event('pvecluster', { state: 'ok', message: 'Cluster has quorum' } )
   else
-    send_event('pvecluster', { status: 'Warning', message: "PVECluster not running on:\n #{nopmxcfshostlist.join(", ")}"} )
+    send_event('pvecluster', { state: 'warning', message: "PVECluster not running on:\n #{nopmxcfshostlist.join(", ")}"} )
   end
   
 
-  send_event('corosync', { status: 'CRITICAL', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(cluster_status)
+  send_event('corosync', { state: 'critical', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(cluster_status)
   if downhostlist.empty?
-    send_event('corosync', { status: 'OK', message: "Corosync up on all hosts"} )
+    send_event('corosync', { state: 'ok', message: "Corosync up on all hosts"} )
   else
-    send_event('corosync', { status: 'Warning', message: "Node(s) not running: \n #{downhostlist.join(", ")}" } )
+    send_event('corosync', { state: 'warning', message: "Node(s) not running: \n #{downhostlist.join(", ")}" } )
   end
   unless norgmanagerlist.empty?
-    send_event('rgmanager', { status: 'CRITICAL', message: "Node(s) not running RG Manager: \n #{norgmanagerlist.join(", ")}" } )
+    send_event('rgmanager', { state: 'critical', message: "Node(s) not running RG Manager: \n #{norgmanagerlist.join(", ")}" } )
   else
-    send_event('rgmanager', { status: 'OK', message: 'RGmanager is healthy' } )
+    send_event('rgmanager', { state: 'ok', message: 'RGmanager is healthy' } )
   end
 
   unless down_ha_host_ids.empty?
-    send_event('haservers', { status: 'CRITICAL', message: "HA servers down: \n #{down_ha_host_ids.join(", ")}" } )
+    send_event('haservers', { state: 'critical', message: "HA servers down: \n #{down_ha_host_ids.join(", ")}" } )
   else
-    send_event('haservers', { status: 'OK', message: 'All HA servers are running' } )
+    send_event('haservers', { state: 'ok', message: 'All HA servers are running' } )
   end
 end
 
 def report_total_failure
     p "Setting all blocks to critical, beacuse no hosts are reachable"
-    send_event('pvecluster', { status: 'CRITICAL', message: "KVM cluster unreachable" } )
-    send_event('corosync', { status: 'CRITICAL', message: "KVM cluster unreachable"} )
-    send_event('rgmanager', { status: 'CRITICAL', message: "KVM cluster unreachable" } )
-    send_event('haservers', { status: 'CRITICAL', message: "KVM cluster unreachable" })
+    send_event('pvecluster', { state: 'critical', message: "KVM cluster unreachable" } )
+    send_event('corosync', { state: 'critical', message: "KVM cluster unreachable"} )
+    send_event('rgmanager', { state: 'critical', message: "KVM cluster unreachable" } )
+    send_event('haservers', { state: 'critical', message: "KVM cluster unreachable" })
 end
 
 def bad_nodes_report(conf)

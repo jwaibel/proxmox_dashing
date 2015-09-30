@@ -4,11 +4,11 @@ class Dashing.HotStatus extends Dashing.Widget
     super
 
   onData: (data) ->
-    return if not @status
-    status = @status.toLowerCase()
+    return if not @state
+    state = @state.toLowerCase()
 
-    if [ 'critical', 'warning', 'ok', 'unknown' ].indexOf(status) != -1
-      backgroundClass = "hot-status-#{status}"
+    if [ 'critical', 'warning', 'ok', 'unknown' ].indexOf(state) != -1
+      backgroundClass = "hot-status-#{state}"
     else
       backgroundClass = "hot-status-neutral"
 
@@ -18,7 +18,7 @@ class Dashing.HotStatus extends Dashing.Widget
       $(@node).toggleClass("#{lastClass} #{backgroundClass}")
       @lastClass = backgroundClass
 
-      audiosound = @get(status + 'sound')
+      audiosound = @get(state + 'sound')
       audioplayer = new Audio(audiosound) if audiosound?
       if audioplayer
         audioplayer.play()
