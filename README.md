@@ -31,3 +31,6 @@ For this and information about dashing check out the official documentation: htt
 In addition to the dashing frontend, it also makes use of the dashing contrib extention libraries to offer api
 access to state information of each widget, wich is awesome if you want to build some physical alert system around it.
 https://github.com/QubitProducts/dashing-contrib
+
+Some screenshots:
+Cluster health good: http://snag.gy/pMeHl.jpg
