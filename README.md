@@ -33,7 +33,8 @@ access to state information of each widget, wich is awesome if you want to build
 https://github.com/QubitProducts/dashing-contrib
 
 Some screenshots:
+
 Cluster health good: ![Proxmox Health Good](https://github.com/hetznerZA/pictures/blob/master/Dashing/Cluster_Good.png)
-RGManager critical ![RGmanager critical](https://github.com/hetznerZA/pictures/blob/master/Dashing/cluster_crit_rgmanager.png)
-Host down ![Host down](https://github.com/hetznerZA/pictures/blob/master/Dashing/Cluster_warnings_host_down.png)
-Cluster unreachable ![Cluster unreachable](https://github.com/hetznerZA/pictures/blob/master/Dashing/cluster_unreachable.png)
+RGManager critical: ![RGmanager critical](https://github.com/hetznerZA/pictures/blob/master/Dashing/cluster_crit_rgmanager.png)
+Host down: ![Host down](https://github.com/hetznerZA/pictures/blob/master/Dashing/Cluster_warnings_host_down.png)
+Cluster unreachable: ![Cluster unreachable](https://github.com/hetznerZA/pictures/blob/master/Dashing/cluster_unreachable.png)
