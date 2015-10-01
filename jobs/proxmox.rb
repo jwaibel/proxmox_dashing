@@ -124,7 +124,6 @@ def report_cluster_status(site,auth_params)
     send_event('pvecluster', { state: 'warning', message: "PVECluster not running on:\n #{nopmxcfshostlist.join(", ")}"} )
   end
 
-
   send_event('corosync', { state: 'critical', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(cluster_status)
   if downhostlist.empty?
     send_event('corosync', { state: 'ok', message: "Corosync up on all hosts"} )
@@ -132,7 +131,11 @@ def report_cluster_status(site,auth_params)
     send_event('corosync', { state: 'warning', message: "Node(s) not running: \n #{downhostlist.join(", ")}" } )
   end
   unless norgmanagerlist.empty?
-    state_level = norgmanagerlist.count == 1 ? "warning" : "critical"
+    if nodes.count.to_f/2 > norgmanagerlist.count.to_f
+      state_level = "warning"
+    else
+      state_level = "critical"
+    end
     send_event('rgmanager', { state: state_level, message: "Node(s) not running RG Manager: \n #{norgmanagerlist.join(", ")}" } )
   else
     send_event('rgmanager', { state: 'ok', message: 'RGmanager is healthy' } )
