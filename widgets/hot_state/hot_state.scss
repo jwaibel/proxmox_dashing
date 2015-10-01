@@ -13,14 +13,14 @@
 // ----------------------------------------------------------------------------
 $background-color: #000000;
 $title-color: rgba(255, 255, 255, 0.7);
-$status-color: #FFFFFF;
+$state-color: #FFFFFF;
 $message-color: rgba(255, 255, 255, 0.7);
 $updated-at-color: rgba(0, 0, 0, 0.3);
 
 // ----------------------------------------------------------------------------
-// Widget-status styles
+// Widget-state styles
 // ----------------------------------------------------------------------------
-.widget-hot-status {
+.widget-hot-state {
 
   background-color: $background-color;
   @include transition(background-color, 1s, linear);
@@ -31,7 +31,7 @@ $updated-at-color: rgba(0, 0, 0, 0.3);
   }
 
   .state {
-    color: $status-color;
+    color: $state-color;
     font-size: 40px;
   }
 
@@ -46,7 +46,7 @@ $updated-at-color: rgba(0, 0, 0, 0.3);
 
 }
 
-.hot-status-ok { background-color: #00C176; }
-.hot-status-warning { background-color: #FABE28; }
-.hot-status-critical { background-color: #FF003C; }
-.hot-status-unknown { background-color: #FF003C; }
+.hot-state-ok { background-color: #00C176; }
+.hot-state-warning { background-color: #FABE28; }
+.hot-state-critical { background-color: #FF003C; }
+.hot-state-unknown { background-color: #FF003C; }
