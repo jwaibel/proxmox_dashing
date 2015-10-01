@@ -16,6 +16,9 @@ with their running kernel versions.
 Requirements:
 * rvm, bundler
 * Javascript runtime package (like nodejs)
+* Add a user to your proxmox cluster for api querying
+  * pveum useradd [username]@[user_type] -comment 'For dashing'
+  * pveum aclmod / -user [username]@[user_type] -role PVEAuditor
 
 Installation and configuration:
 * clone the repo
