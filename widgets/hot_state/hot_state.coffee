@@ -8,9 +8,9 @@ class Dashing.HotStatus extends Dashing.Widget
     state = @state.toLowerCase()
 
     if [ 'critical', 'warning', 'ok', 'unknown' ].indexOf(state) != -1
-      backgroundClass = "hot-status-#{state}"
+      backgroundClass = "hot-state-#{state}"
     else
-      backgroundClass = "hot-status-neutral"
+      backgroundClass = "hot-state-neutral"
 
     lastClass = @lastClass
 
