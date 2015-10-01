@@ -123,7 +123,6 @@ def report_cluster_status(site,auth_params)
   else
     send_event('pvecluster', { state: 'warning', message: "PVECluster not running on:\n #{nopmxcfshostlist.join(", ")}"} )
   end
-  
 
   send_event('corosync', { state: 'critical', message: 'Cluster lost quorum', status:'Critical' } ) unless have_quorum(cluster_status)
   if downhostlist.empty?
@@ -145,11 +144,10 @@ def report_cluster_status(site,auth_params)
 end
 
 def report_total_failure
-    p "Setting all blocks to critical, beacuse no hosts are reachable"
-    send_event('pvecluster', { state: 'critical', message: "KVM cluster unreachable" } )
-    send_event('corosync', { state: 'critical', message: "KVM cluster unreachable"} )
-    send_event('rgmanager', { state: 'critical', message: "KVM cluster unreachable" } )
-    send_event('haservers', { state: 'critical', message: "KVM cluster unreachable" })
+  send_event('pvecluster', { state: 'critical', message: "KVM cluster unreachable" } )
+  send_event('corosync', { state: 'critical', message: "KVM cluster unreachable"} )
+  send_event('rgmanager', { state: 'critical', message: "KVM cluster unreachable" } )
+  send_event('haservers', { state: 'critical', message: "KVM cluster unreachable" })
 end
 
 def bad_nodes_report(conf)
