@@ -1,4 +1,4 @@
-class Dashing.HotStatus extends Dashing.Widget
+class Dashing.HotState extends Dashing.Widget
 
   constructor: ->
     super
