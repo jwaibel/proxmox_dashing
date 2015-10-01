@@ -131,7 +131,12 @@ def report_cluster_status(site,auth_params)
     send_event('corosync', { state: 'warning', message: "Node(s) not running: \n #{downhostlist.join(", ")}" } )
   end
   unless norgmanagerlist.empty?
-    send_event('rgmanager', { state: 'critical', message: "Node(s) not running RG Manager: \n #{norgmanagerlist.join(", ")}" } )
+    if nodes.count.to_f/2 > norgmanagerlist.count.to_f
+      state_level = "warning"
+    else
+      state_level = "critical"
+    end
+    send_event('rgmanager', { state: state_level, message: "Node(s) not running RG Manager: \n #{norgmanagerlist.join(", ")}" } )
   else
     send_event('rgmanager', { state: 'ok', message: 'RGmanager is healthy' } )
   end
